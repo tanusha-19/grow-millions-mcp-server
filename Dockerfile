@@ -1,33 +1,16 @@
-# 1. Add AWS Lambda Web Adapter
-FROM --platform=$TARGETPLATFORM public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 AS adapter
-
-# 2. Base Python environment matching Python 3.13
-FROM python:3.13-slim
+FROM python:3.11-slim-bookworm AS base
+COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /bin/uv
 
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1
 
-# Copy Lambda Adapter extension
-COPY --from=adapter /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=public.ecr.aws/awslambda/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PORT=8080
-
-# Install uv for fast dependency installation
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-
-# Copy configuration files and install dependencies
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-cache
+RUN uv pip install --no-cache -r pyproject.toml
 
-# Copy application source code
 COPY . .
 
-# Create non-root user for security
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
-
 EXPOSE 8080
-
-# Start FastMCP server module
-CMD ["uv", "run", "python", "-m", "app.mcp.server"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
