@@ -1,14 +1,23 @@
+# 1. Add AWS Lambda Web Adapter
+FROM --platform=$TARGETPLATFORM public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 AS adapter
+
+# 2. Base Python environment matching Python 3.13
 FROM python:3.13-slim
 
 WORKDIR /app
 
+# Copy Lambda Adapter extension
+COPY --from=adapter /lambda-adapter /opt/extensions/lambda-adapter
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
+
 # Install uv for fast dependency installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy configuration files
+# Copy configuration files and install dependencies
 COPY pyproject.toml uv.lock ./
-
-# Install dependencies
 RUN uv sync --frozen --no-cache
 
 # Copy application source code
@@ -18,10 +27,7 @@ COPY . .
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8000
+EXPOSE 8080
 
-# Health check configuration
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
-
-CMD ["uv", "run", "python", "-m", "app.main"]
+# Start FastMCP server module
+CMD ["uv", "run", "python", "-m", "app.mcp.server"]

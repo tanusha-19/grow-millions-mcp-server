@@ -1,5 +1,4 @@
 """JWT Authentication and Scope Authorization Middleware."""
-
 from typing import List, Optional
 import jwt
 from fastapi import HTTPException, Security
@@ -8,17 +7,13 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-
 from app.config.settings import settings
 
 security_scheme = HTTPBearer(auto_error=False)
-
-
 class IdentityContext(BaseModel):
     user_id: str
     tenant_id: str
     scopes: List[str] = Field(default_factory=list)
-
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     """HTTP Middleware for enforcing basic security headers."""
@@ -28,8 +23,6 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         return response
-
-
 def parse_identity_context(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_scheme),
 ) -> IdentityContext:
@@ -72,8 +65,6 @@ def parse_identity_context(
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid authorization token")
-
-
 def check_scope(required_scope: str, identity: IdentityContext) -> None:
     """Validates if identity possesses the required permission scope."""
     if required_scope not in identity.scopes:
