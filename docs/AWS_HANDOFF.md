@@ -1,27 +1,26 @@
-# AWS Infrastructure Handoff
+# AWS Infrastructure Deployment & Handoff Guide
 
 ## Overview
-This document outlines the operational and configuration requirements for deploying the Grow Millions MCP Server package onto AWS Lambda via container image and API Gateway.
+This document details the configuration and deployment handoff for hosting the Grow Millions MCP Server on AWS.
 
-## Environment & Configuration
-- **Runtime:** Python 3.11-slim-bookworm (retained for robust package compatibility and stability)
-- **Dependency Manager:** `uv 0.5.11` (pinned)
-- **Container Port:** 8080 (serves FastAPI and FastMCP via AWS Lambda Web Adapter `0.8.4`)
-- **Health Endpoint:** `GET /health`
-- **MCP Endpoint:** `POST /mcp` (or SSE transport as configured)
+> **Prerequisite Note:** The Docker image still requires build and runtime verification in Aditya's environment before AWS deployment, as Docker Desktop was unavailable in the local development environment.
 
-## Required Environment Variables (Managed via AWS Secrets Manager)
-- `APP_ENV=production`
-- `MCP_SERVER_NAME=grow-millions`
-- `MCP_SERVER_VERSION=0.1.0`
-- Upstream Service URLs (MARK-AI, Strategist, Content, Auto Post, Meta Ads, Compliance, Marketplace)
-- Authentication Issuer & Audience (`AUTH_ISSUER`, `AUTH_AUDIENCE`)
+## Handoff Responsibilities
+- **Development Scope (Tanusha):** Completed application logic, tool registration, security middleware, mock adapters, and 21/21 host-based unit/E2E tests.
+- **Cloud & DevOps Scope (Aditya):** Container build verification, AWS ECR/ECS staging, domain configuration (`https://growmillions.in/mcp`), IAM policies, and live production release.
 
-## IAM Permissions & Roles
-- **Execution Role:** Least-privilege Lambda execution role.
-- **Secrets Manager:** `secretsmanager:GetSecretValue` permission for retrieving runtime configuration secrets.
-- **CloudWatch:** Standard `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`.
+## Environment & Container Specifications
+- **Base Image:** `python:3.11-slim-bookworm`
+- **Package Manager:** `uv` (pinned version `0.5.11`)
+- **Entry Point:** FastAPI / FastMCP server running on port `8000`
+- **Healthcheck Endpoint:** `/health`
+- **MCP Endpoint:** `/mcp`
 
-## Network & Ingress
-- **Ingress:** API Gateway HTTP API with regional or edge-optimized payload routing.
-- **Security Groups:** Restrict outbound calls where necessary; inbound HTTP/HTTPS traffic accepted via API Gateway.
+## Deployment Checklist for AWS (Aditya)
+1. [ ] Pull branch `feature/mcp-production-verification`
+2. [ ] Build Docker image: `docker build -t grow-millions-mcp .`
+3. [ ] Run containerized tests: `docker run --rm grow-millions-mcp uv run pytest`
+4. [ ] Push container to AWS ECR
+5. [ ] Provision ECS / App Runner service with SSL certificate for `growmillions.in`
+6. [ ] Configure environment secrets (OAuth tokens, API keys) in AWS Secrets Manager
+7. [ ] Verify `/health` and `/mcp` endpoints on staging URL
